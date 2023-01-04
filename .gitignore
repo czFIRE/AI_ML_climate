@@ -1,0 +1,7 @@
+project_2/GRU_model.pt
+project_2/LSTM_model.pt
+
+project_2/dataset/
+project_2/__pycache__
+
+*.zip
