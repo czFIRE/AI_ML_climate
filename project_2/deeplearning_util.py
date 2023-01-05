@@ -68,6 +68,17 @@ class TSModel_lstm(nn.Module):
         
         return y_pred
 
+LSTM_Model = None
+RNN_Model = None
+
+# I'm disgusted by this but oh well
+def reset_models():
+    global LSTM_Model
+    global RNN_Model
+
+    LSTM_Model = None
+    RNN_Model = None
+
 def train_model(train: pd.DataFrame,
                 test: pd.DataFrame,
                 features: list[str],
@@ -82,10 +93,18 @@ def train_model(train: pd.DataFrame,
 
     n_features = train[features].shape[1]
 
+    global LSTM_Model
+    global RNN_Model
+
+    # the old version created a new model for each file!!!
     if model_name == "LSTM":
-        model = TSModel_lstm(n_features)
+        if (LSTM_Model == None):
+            LSTM_Model = TSModel_lstm(n_features)
+        model = LSTM_Model
     else:
-        model = TSModel_rnn(n_features)
+        if (RNN_Model == None):
+            RNN_Model = TSModel_rnn(n_features)
+        model = RNN_Model
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -170,6 +189,7 @@ def predict(df: pd.DataFrame, parameters, features, orginal_scaler, model_name:s
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
     
+    # We don't have the problem of the new model here since we're loading the best
     model.load_state_dict(torch.load(f"{parameters['path']}{model_name}_model.pt"))
     model.eval()
 

@@ -32,16 +32,25 @@ def shift_values(df: pd.DataFrame):
     # when using this for the combined value, pay attetion that you don't shift the values about the gauge. Aber wenn wir das machen ist doch eh egal oder, weil es 
     # bleibt ja gleich, man muss halt drauf achten, dass es nur für das entsprechende gauge macht, nicht, dass sich das auf ein anderen gauge auswirkt
     prec = df["prec"].to_list() #shape (100,1)
-    df_temp = df.drop(columns=["prec"], axis=1, inplace=False)
-    shifted_1_day = df_temp.shift(1, axis=0).reset_index()
-    shifted_2_day = df_temp.shift(2, axis=0).reset_index()
-    shifted_3_day = df_temp.shift(3, axis=0).reset_index()
+    #df_temp = df.drop(columns=["prec"], axis=1, inplace=False)
+    
+    shifted_1_val = df.shift(1, axis=0).reset_index()
 
-    temp = pd.merge(shifted_1_day, shifted_2_day, left_index=True, right_index=True, 
+    # could be done nicer to work for also only 1, but I'm just too lazy to do it
+    n_shifts = 6
+    shifted_n_vals = []
+
+    for shift in range(n_shifts - 1):
+        shifted_n_vals.append(df.shift(shift + 2, axis=0).reset_index())
+
+
+    temp = pd.merge(shifted_1_val, shifted_n_vals[0], left_index=True, right_index=True, 
                     suffixes=("_1day", "_2day"))
-    temp = temp.merge(shifted_3_day.add_suffix("_3day"), left_index=True, right_index=True)
 
-    temp["prec"] = prec #(2320, xxx)
+    for index, val in enumerate(shifted_n_vals[1:]):
+        temp = temp.merge(val.add_suffix(f"_{index + 3}day"), left_index=True, right_index=True)
+
+    temp["prec"] = prec
     # There are only NaNs values in the first few rows, resulting from shifting. Therefor it is no problem removing this data as we have so much data
     return temp.dropna()
 
@@ -65,13 +74,13 @@ def cv_score_average(df: pd.DataFrame, model_name: str, tss: TimeSeriesSplit, fe
                                         learning_rate=0.01,
                                         verbosity = 0)
             case "RandomForrest":
-                model = RandomForestRegressor(n_estimators=100)
+                model = RandomForestRegressor(n_estimators=100, n_jobs=-1)
             case "DecisionTree":
                 model = DecisionTreeRegressor()
             case "SGD":
                 model = SGDRegressor()
             case "LinearRegression":
-                model = LinearRegression()
+                model = LinearRegression(n_jobs=-1)
         
         model.fit(X_train, y_train)
 
@@ -80,3 +89,6 @@ def cv_score_average(df: pd.DataFrame, model_name: str, tss: TimeSeriesSplit, fe
         scores.append(score)
         
         return np.average(scores)
+
+def predict_on_test_set(df: pd.DataFrame, model_name: str, tss: TimeSeriesSplit, features: list[str], target: str):
+    pass
