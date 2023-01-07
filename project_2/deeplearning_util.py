@@ -27,7 +27,7 @@ class TimeSeriesDataset(Dataset):
         return self.X[index:index+self.seq_len], self.y[index+self.seq_len]
 
 class TSModel_rnn(nn.Module):
-    def __init__(self, n_features, n_hidden=64, n_layers=2):
+    def __init__(self, n_features, n_hidden: int = 64, n_layers: int = 2):  
         super(TSModel_rnn, self).__init__()
 
         self.n_hidden = n_hidden
@@ -48,18 +48,24 @@ class TSModel_rnn(nn.Module):
         return y_pred
 
 class TSModel_lstm(nn.Module):
-    def __init__(self, n_features, n_hidden=64, n_layers=2):
+    def __init__(self, n_features, model_parameters: None|dict = {"dropout":0.5, "bias": True, "batch_first": True, "hidden_size": 64, "num_layers": 2}):
         super(TSModel_lstm, self).__init__()
 
-        self.n_hidden = n_hidden
+        if (model_parameters is None):
+            model_parameters = {"dropout":0.5, "bias": True, "batch_first": True, "hidden_size": 64, "num_layers": 2}
+            
+        self.n_hidden: int = model_parameters["hidden_size"]
         self.lstm = nn.LSTM(
             input_size=n_features,
-            hidden_size=n_hidden,
-            batch_first=True,
-            num_layers=n_layers,
-            dropout=0.5
+            **model_parameters,
+            
+            # hidden_size=self.n_hidden,
+            # batch_first=True,
+            # num_layers=model_parameters["n_layers"],
+            # dropout=0.5,
+            # proj_size = 0,  
         )
-        self.linear = nn.Linear(n_hidden, 1)
+        self.linear = nn.Linear(self.n_hidden, 1)
         
     def forward(self, x):
         _, (hidden, _) = self.lstm(x)
@@ -83,7 +89,10 @@ def train_model(train: pd.DataFrame,
                 test: pd.DataFrame,
                 features: list[str],
                 parameters:dict,
-                model_name: str):
+                model_name: str,
+                model_parameters: None|dict = None,
+                create_new_model = False,
+                ):
     train_dataset = TimeSeriesDataset(np.array(train[features]), 
                     np.array(train["prec"]), seq_len=parameters["sequence_length"])
     train_loader = DataLoader(train_dataset, batch_size=parameters["batch_size"], shuffle=False)
@@ -98,11 +107,11 @@ def train_model(train: pd.DataFrame,
 
     # the old version created a new model for each file!!!
     if model_name == "LSTM":
-        if (LSTM_Model == None):
-            LSTM_Model = TSModel_lstm(n_features)
+        if (create_new_model or LSTM_Model is None):
+            LSTM_Model = TSModel_lstm(n_features, model_parameters = model_parameters)
         model = LSTM_Model
     else:
-        if (RNN_Model == None):
+        if (create_new_model or RNN_Model is None):
             RNN_Model = TSModel_rnn(n_features)
         model = RNN_Model
 
@@ -180,9 +189,9 @@ def descale(descaler, values):
 def print_loss_metrics(y_true, y_pred):
     print(mean_squared_error(y_true.tolist(), y_pred.tolist(), squared=False))
 
-def predict(df: pd.DataFrame, parameters, features, orginal_scaler, model_name:str):
+def predict(df: pd.DataFrame, parameters, features, orginal_scaler, model_name:str, model_parameters: None|dict = None):
     if model_name == "LSTM":
-        model = TSModel_lstm(df[features].shape[1])
+        model = TSModel_lstm(df[features].shape[1], model_parameters=model_parameters)
     else:
         model = TSModel_rnn(df[features].shape[1])
     
