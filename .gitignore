@@ -5,3 +5,4 @@ project_2/dataset/
 project_2/__pycache__
 
 *.zip
+.ipynb_checkpoints
