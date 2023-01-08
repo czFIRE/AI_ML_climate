@@ -1,18 +1,8 @@
-import os
 import numpy as np
 import pandas as pd
-import xgboost as xgb
-from sklearn.multioutput import MultiOutputRegressor
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.linear_model import SGDRegressor, LinearRegression
 from sklearn.model_selection import TimeSeriesSplit
-from math import sqrt
 import datetime as dt
-import matplotlib.pyplot as plt
 
 
 def get_prepare_data(Data_path: str, filename: str, cut_data: bool) -> pd.DataFrame:
@@ -54,7 +44,7 @@ def shift_values(df: pd.DataFrame):
     # There are only NaNs values in the first few rows, resulting from shifting. Therefor it is no problem removing this data as we have so much data
     return temp.dropna()
 
-def cv_score_average(df: pd.DataFrame, model_name: str, tss: TimeSeriesSplit, features: list[str], target: str):
+def cv_score_average(df: pd.DataFrame, model, tss: TimeSeriesSplit, features: list[str], target: str):
     for train_idx, val_idx in tss.split(df):
         scores = []
         train = df.iloc[train_idx]
@@ -64,31 +54,11 @@ def cv_score_average(df: pd.DataFrame, model_name: str, tss: TimeSeriesSplit, fe
         y_train = train[target]
         X_test = test[features]
         y_test = test[target]
-
-        match model_name:
-            case "xgb":
-                model = xgb.XGBRegressor(base_score=0.5, booster="gbtree", 
-                                        n_estimators = 1000,
-                                        objective="reg:squarederror",
-                                        max_depth=3,
-                                        learning_rate=0.01,
-                                        verbosity = 0)
-            case "RandomForrest":
-                model = RandomForestRegressor(n_estimators=100, n_jobs=-1)
-            case "DecisionTree":
-                model = DecisionTreeRegressor()
-            case "SGD":
-                model = SGDRegressor()
-            case "LinearRegression":
-                model = LinearRegression(n_jobs=-1)
-        
+       
         model.fit(X_train, y_train)
 
         y_pred = model.predict(X_test)
         score = mean_squared_error(y_test.to_list(), y_pred.tolist(), squared=False)
         scores.append(score)
-        
-        return np.average(scores)
 
-def predict_on_test_set(df: pd.DataFrame, model_name: str, tss: TimeSeriesSplit, features: list[str], target: str):
-    pass
+        return np.average(scores)
